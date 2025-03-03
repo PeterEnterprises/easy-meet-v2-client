@@ -1,31 +1,47 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default function DashboardPage() {
-  const { user, isAuthenticated, loading } = useAuth();
+  const { user, loading } = useAuth();
   const router = useRouter();
+  const [isPageReady, setIsPageReady] = useState(false);
 
+  // Simplified effect to just handle page readiness
   useEffect(() => {
-    if (!loading && !isAuthenticated) {
-      router.push("/login");
+    console.log('Dashboard page mounted, user state:', { 
+      loading, 
+      hasUser: !!user 
+    });
+    
+    // Only set page as ready when loading is complete and we have user data
+    if (!loading && user) {
+      console.log('User data loaded, setting page as ready');
+      setIsPageReady(true);
     }
-  }, [loading, isAuthenticated, router]);
+  }, [loading, user]);
 
-  if (loading) {
+  // Show loading state
+  if (loading || !isPageReady) {
     return (
       <div className="flex h-screen items-center justify-center">
-        <p className="text-lg">Loading...</p>
+        <p className="text-lg">Loading dashboard...</p>
       </div>
     );
   }
 
+  // Safety check - if somehow we get here without a user, show empty state
+  // We don't redirect here since middleware and layout already handle auth redirects
   if (!user) {
-    return null; // Will redirect in the useEffect
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <p className="text-lg">No user data available</p>
+      </div>
+    );
   }
 
   return (

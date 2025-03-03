@@ -1,19 +1,17 @@
 "use client";
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { useRouter } from 'next/navigation';
 import { User } from '@/types';
-import { login as loginService, signup as signupService, logout as logoutService, refreshToken as refreshTokenService, isAuthenticated, getCurrentUser } from '@/services';
-import { LoginVariables, SignupVariables, RefreshTokenVariables } from '@/types';
+import { getCurrentUser } from '@/app/actions/auth.action';
 
 interface AuthContextType {
   user: User | null;
   loading: boolean;
   error: string | null;
   isAuthenticated: boolean;
-  login: (variables: LoginVariables) => Promise<void>;
-  signup: (variables: SignupVariables) => Promise<void>;
   logout: () => void;
-  refreshToken: (variables: RefreshTokenVariables) => Promise<void>;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -23,87 +21,70 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [authenticated, setAuthenticated] = useState<boolean>(false);
+  const router = useRouter();
 
-  useEffect(() => {
-    // Check if user is authenticated on mount
-    const checkAuth = async () => {
+  // Function to fetch the current user
+  const refreshUser = async () => {
+    try {
+      console.log('Refreshing user data...');
+      setLoading(true);
+      setError(null);
+      
+      // Try to get the current user, but don't throw an error if not authenticated
       try {
-        setLoading(true);
-        const isAuth = isAuthenticated();
-        setAuthenticated(isAuth);
-
-        if (isAuth) {
-          const currentUser = await getCurrentUser();
+        const currentUser = await getCurrentUser();
+        console.log('Current user data:', currentUser ? 'User found' : 'No user found');
+        
+        if (currentUser) {
           setUser(currentUser);
+          setAuthenticated(true);
+          console.log('User authenticated, state updated');
+          return;
         }
       } catch (err) {
-        console.error('Authentication check error:', err);
-        setError('Failed to authenticate');
-      } finally {
-        setLoading(false);
+        // Silently handle authentication errors
+        if (err instanceof Error && err.message.includes('Authentication required')) {
+          console.log('User not authenticated');
+        } else {
+          console.error('Error fetching user:', err);
+        }
       }
-    };
-
-    checkAuth();
-  }, []);
-
-  const login = async (variables: LoginVariables) => {
-    try {
-      setLoading(true);
-      setError(null);
-      const response = await loginService(variables);
-      setUser(response.user);
-      setAuthenticated(true);
-    } catch (err) {
-      console.error('Login error:', err);
-      setError('Login failed. Please check your credentials and try again.');
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const signup = async (variables: SignupVariables) => {
-    try {
-      setLoading(true);
-      setError(null);
-      const response = await signupService(variables);
-      setUser(response.user);
-      setAuthenticated(true);
-    } catch (err) {
-      console.error('Signup error:', err);
-      setError('Signup failed. Please try again.');
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const logout = () => {
-    try {
-      logoutService();
+      
+      // If we get here, either there's no user or there was an error
+      console.log('Setting user to null and authenticated to false');
       setUser(null);
       setAuthenticated(false);
     } catch (err) {
-      console.error('Logout error:', err);
-      setError('Logout failed');
+      console.error('Error refreshing user:', err);
+      setError('Failed to refresh user data');
+      setUser(null);
+      setAuthenticated(false);
+    } finally {
+      setLoading(false);
+      console.log('Auth loading state set to false');
     }
   };
 
-  const refreshTokenFn = async (variables: RefreshTokenVariables) => {
-    try {
-      setLoading(true);
-      setError(null);
-      const response = await refreshTokenService(variables);
-      setUser(response.user);
-      setAuthenticated(true);
-    } catch (err) {
-      console.error('Token refresh error:', err);
-      setError('Failed to refresh authentication');
-      throw err;
-    } finally {
+  // Check if user is authenticated on mount only, but skip on auth pages
+  useEffect(() => {
+    // Skip refreshing user data on auth pages to prevent authentication errors
+    const isAuthPage = typeof window !== 'undefined' && 
+      (window.location.pathname.includes('/login') || 
+       window.location.pathname.includes('/signup'));
+    
+    if (!isAuthPage) {
+      console.log('AuthProvider mounted on non-auth page, refreshing user');
+      refreshUser();
+    } else {
+      console.log('AuthProvider mounted on auth page, skipping user refresh');
+      // Just set loading to false without trying to fetch user data
       setLoading(false);
     }
+  }, []);
+
+  // Logout function - now just redirects to the server action
+  const logout = () => {
+    router.push('/api/auth/logout');
   };
 
   const value = {
@@ -111,10 +92,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     loading,
     error,
     isAuthenticated: authenticated,
-    login,
-    signup,
     logout,
-    refreshToken: refreshTokenFn,
+    refreshUser,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

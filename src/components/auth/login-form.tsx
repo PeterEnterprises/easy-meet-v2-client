@@ -1,63 +1,67 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect } from "react";
+import React from "react";
 import Link from "next/link";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
-import { z } from "zod";
+import { useRouter } from "next/navigation";
+import { useFormState, useFormStatus } from "react-dom";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { useAuth } from "@/hooks";
+import { login } from "@/app/actions/auth.action";
 
-const loginSchema = z.object({
-  usernameOrEmail: z.string().min(1, "Username or email is required"),
-  password: z.string().min(1, "Password is required"),
-});
+// For debugging
+console.log('Login form component loaded');
 
-type LoginFormValues = z.infer<typeof loginSchema>;
+// Initial state for form
+const initialState = {
+  error: null,
+  fieldErrors: {
+    usernameOrEmail: [],
+    password: [],
+  }
+};
+
+// Submit button with loading state
+function SubmitButton() {
+  const { pending } = useFormStatus();
+  
+  return (
+    <Button type="submit" className="w-full" disabled={pending}>
+      {pending ? "Logging in..." : "Login"}
+    </Button>
+  );
+}
 
 export function LoginForm() {
-  const { login } = useAuth();
   const router = useRouter();
-  const [isLoading, setIsLoading] = useState(false);
-
-  const form = useForm<LoginFormValues>({
-    resolver: zodResolver(loginSchema),
-    defaultValues: {
-      usernameOrEmail: "",
-      password: "",
-    },
-  });
-
-  async function onSubmit(data: LoginFormValues) {
-    try {
-      setIsLoading(true);
-      await login({
-        usernameOrEmail: data.usernameOrEmail,
-        password: data.password,
-      });
-      toast.success("Logged in successfully");
-      router.push("/dashboard");
-    } catch (error) {
-      console.error("Login error:", error);
-      toast.error("Failed to login. Please check your credentials.");
-    } finally {
-      setIsLoading(false);
+  const [state, formAction] = useFormState(login, initialState);
+  
+  // Show toast on error or handle redirect on success
+  useEffect(() => {
+    console.log("Login form state updated:", state);
+    
+    if (state?.error) {
+      toast.error(state.error);
+      console.log("Login error:", state.error);
     }
-  }
-
+    
+    // Handle redirect if login was successful
+    if (state?.success && state?.redirectTo) {
+      console.log("Login successful, redirecting to:", state.redirectTo);
+      
+      // Use router.refresh() to ensure the auth state is updated before navigation
+      router.refresh();
+      
+      // Then navigate to the dashboard
+      console.log("Executing redirect now");
+      router.push(state.redirectTo);
+    }
+  }, [state, router]);
+  
   return (
     <Card className="w-full max-w-md mx-auto">
       <CardHeader>
@@ -67,39 +71,39 @@ export function LoginForm() {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <FormField
-              control={form.control}
-              name="usernameOrEmail"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Username or Email</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Enter your username or email" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
+        <form action={formAction} className="space-y-4">
+          {state?.error && (
+            <div className="p-3 bg-destructive/10 border border-destructive text-destructive rounded-md">
+              {state.error}
+            </div>
+          )}
+          <div className="space-y-2">
+            <Label htmlFor="usernameOrEmail">Username or Email</Label>
+            <Input 
+              id="usernameOrEmail"
+              name="usernameOrEmail" 
+              placeholder="Enter your username or email" 
             />
-            <FormField
-              control={form.control}
-              name="password"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Password</FormLabel>
-                  <FormControl>
-                    <Input type="password" placeholder="Enter your password" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
+            {state?.fieldErrors?.usernameOrEmail?.map((error: string) => (
+              <p key={error} className="text-sm text-destructive">{error}</p>
+            ))}
+          </div>
+          
+          <div className="space-y-2">
+            <Label htmlFor="password">Password</Label>
+            <Input 
+              id="password"
+              name="password" 
+              type="password" 
+              placeholder="Enter your password" 
             />
-            <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? "Logging in..." : "Login"}
-            </Button>
-          </form>
-        </Form>
+            {state?.fieldErrors?.password?.map((error: string) => (
+              <p key={error} className="text-sm text-destructive">{error}</p>
+            ))}
+          </div>
+          
+          <SubmitButton />
+        </form>
       </CardContent>
       <CardFooter className="flex justify-center">
         <p className="text-sm text-muted-foreground">

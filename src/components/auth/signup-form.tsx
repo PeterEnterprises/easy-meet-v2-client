@@ -1,73 +1,69 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect } from "react";
+import React from "react";
 import Link from "next/link";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
-import { z } from "zod";
+import { useRouter } from "next/navigation";
+import { useFormState, useFormStatus } from "react-dom";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { useAuth } from "@/hooks";
+import { signup } from "@/app/actions/auth.action";
 
-const signupSchema = z.object({
-  userName: z.string().min(3, "Username must be at least 3 characters"),
-  email: z.string().email("Please enter a valid email address"),
-  password: z.string().min(8, "Password must be at least 8 characters"),
-  confirmPassword: z.string(),
-}).refine((data) => data.password === data.confirmPassword, {
-  message: "Passwords do not match",
-  path: ["confirmPassword"],
-});
+// For debugging
+console.log('Signup form component loaded');
 
-type SignupFormValues = z.infer<typeof signupSchema>;
+// Initial state for form
+const initialState = {
+  error: null,
+  fieldErrors: {
+    userName: [],
+    email: [],
+    password: [],
+    confirmPassword: [],
+  }
+};
+
+// Submit button with loading state
+function SubmitButton() {
+  const { pending } = useFormStatus();
+  
+  return (
+    <Button type="submit" className="w-full" disabled={pending}>
+      {pending ? "Creating account..." : "Sign Up"}
+    </Button>
+  );
+}
 
 export function SignupForm() {
-  const { signup } = useAuth();
   const router = useRouter();
-  const [isLoading, setIsLoading] = useState(false);
-
-  const form = useForm<SignupFormValues>({
-    resolver: zodResolver(signupSchema),
-    defaultValues: {
-      userName: "",
-      email: "",
-      password: "",
-      confirmPassword: "",
-    },
-  });
-
-  async function onSubmit(data: SignupFormValues) {
-    try {
-      setIsLoading(true);
-      await signup({
-        input: {
-          userName: data.userName,
-          email: data.email,
-          password: data.password,
-        },
-      });
-      toast.success("Account created successfully");
-      router.push("/dashboard");
-    } catch (error) {
-      console.error("Signup error:", error);
-      toast.error("Failed to create account. Please try again.");
-    } finally {
-      setIsLoading(false);
+  const [state, formAction] = useFormState(signup, initialState);
+  
+  // Show toast on error or handle redirect on success
+  useEffect(() => {
+    console.log("Signup form state updated:", state);
+    
+    if (state?.error) {
+      toast.error(state.error);
+      console.log("Signup error:", state.error);
     }
-  }
-
+    
+    // Handle redirect if signup was successful
+    if (state?.success && state?.redirectTo) {
+      console.log("Signup successful, redirecting to:", state.redirectTo);
+      
+      // Use router.refresh() to ensure the auth state is updated before navigation
+      router.refresh();
+      
+      // Then navigate to the dashboard
+      console.log("Executing redirect now");
+      router.push(state.redirectTo);
+    }
+  }, [state, router]);
+  
   return (
     <Card className="w-full max-w-md mx-auto">
       <CardHeader>
@@ -77,65 +73,65 @@ export function SignupForm() {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <FormField
-              control={form.control}
-              name="userName"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Username</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Enter a username" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
+        <form action={formAction} className="space-y-4">
+          {state?.error && (
+            <div className="p-3 bg-destructive/10 border border-destructive text-destructive rounded-md">
+              {state.error}
+            </div>
+          )}
+          <div className="space-y-2">
+            <Label htmlFor="userName">Username</Label>
+            <Input 
+              id="userName"
+              name="userName" 
+              placeholder="Enter a username" 
             />
-            <FormField
-              control={form.control}
-              name="email"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Email</FormLabel>
-                  <FormControl>
-                    <Input type="email" placeholder="Enter your email" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
+            {state?.fieldErrors?.userName?.map((error: string) => (
+              <p key={error} className="text-sm text-destructive">{error}</p>
+            ))}
+          </div>
+          
+          <div className="space-y-2">
+            <Label htmlFor="email">Email</Label>
+            <Input 
+              id="email"
+              name="email" 
+              type="email" 
+              placeholder="Enter your email" 
             />
-            <FormField
-              control={form.control}
-              name="password"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Password</FormLabel>
-                  <FormControl>
-                    <Input type="password" placeholder="Create a password" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
+            {state?.fieldErrors?.email?.map((error: string) => (
+              <p key={error} className="text-sm text-destructive">{error}</p>
+            ))}
+          </div>
+          
+          <div className="space-y-2">
+            <Label htmlFor="password">Password</Label>
+            <Input 
+              id="password"
+              name="password" 
+              type="password" 
+              placeholder="Create a password" 
             />
-            <FormField
-              control={form.control}
-              name="confirmPassword"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Confirm Password</FormLabel>
-                  <FormControl>
-                    <Input type="password" placeholder="Confirm your password" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
+            {state?.fieldErrors?.password?.map((error: string) => (
+              <p key={error} className="text-sm text-destructive">{error}</p>
+            ))}
+          </div>
+          
+          <div className="space-y-2">
+            <Label htmlFor="confirmPassword">Confirm Password</Label>
+            <Input 
+              id="confirmPassword"
+              name="confirmPassword" 
+              type="password" 
+              placeholder="Confirm your password" 
             />
-            <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? "Creating account..." : "Sign Up"}
-            </Button>
-          </form>
-        </Form>
+            {state?.fieldErrors?.confirmPassword?.map((error: string) => (
+              <p key={error} className="text-sm text-destructive">{error}</p>
+            ))}
+          </div>
+          
+          <SubmitButton />
+        </form>
       </CardContent>
       <CardFooter className="flex justify-center">
         <p className="text-sm text-muted-foreground">

@@ -8,9 +8,23 @@ const httpLink = createHttpLink({
   uri: 'http://localhost:4000/graphql',
 });
 
+// Function to get token from cookies
+function getTokenFromCookie() {
+  if (typeof document === 'undefined') return null;
+  
+  const cookies = document.cookie.split(';');
+  const tokenCookie = cookies.find(cookie => cookie.trim().startsWith('token='));
+  
+  if (!tokenCookie) return null;
+  
+  return tokenCookie.split('=')[1].trim();
+}
+
 const authLink = setContext((_, { headers }) => {
-  // Get the authentication token from local storage if it exists
-  const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+  // Get the authentication token from cookies to match server-side behavior
+  const token = getTokenFromCookie();
+  
+  console.log('Client-side auth token from cookie:', token ? 'Token exists' : 'No token');
   
   // Return the headers to the context so httpLink can read them
   return {

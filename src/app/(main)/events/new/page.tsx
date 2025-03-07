@@ -1,66 +1,59 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
-import { z } from "zod";
+import { useFormState, useFormStatus } from "react-dom";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { createEvent } from "@/services";
-import { CreateEventInput } from "@/types";
+import { createEventAction } from "@/app/actions/event.action";
 
-const eventSchema = z.object({
-  name: z.string().min(3, "Event name must be at least 3 characters"),
-  usersCanCloseTime: z.boolean().default(true),
-});
+// Initial state for form
+const initialState = {
+  error: null,
+  fieldErrors: {
+    name: [],
+    usersCanCloseTime: [],
+  }
+};
 
-type EventFormValues = z.infer<typeof eventSchema>;
+// Submit button with loading state
+function SubmitButton() {
+  const { pending } = useFormStatus();
+  
+  return (
+    <Button type="submit" disabled={pending}>
+      {pending ? "Creating..." : "Create Event"}
+    </Button>
+  );
+}
 
 export default function NewEventPage() {
   const router = useRouter();
-  const [isLoading, setIsLoading] = useState(false);
-
-  const form = useForm<EventFormValues>({
-    resolver: zodResolver(eventSchema),
-    defaultValues: {
-      name: "",
-      usersCanCloseTime: true,
-    },
-  });
-
-  async function onSubmit(data: EventFormValues) {
-    try {
-      setIsLoading(true);
-      const eventInput: CreateEventInput = {
-        name: data.name,
-        usersCanCloseTime: data.usersCanCloseTime,
-      };
-      
-      const event = await createEvent(eventInput);
-      toast.success("Event created successfully");
-      router.push(`/events/${event.id}`);
-    } catch (error) {
-      console.error("Error creating event:", error);
-      toast.error("Failed to create event. Please try again.");
-    } finally {
-      setIsLoading(false);
+  const [state, formAction] = useFormState(createEventAction, initialState);
+  
+  // Show toast on error or handle redirect on success
+  useEffect(() => {
+    if (state?.error) {
+      toast.error(state.error);
     }
-  }
-
+    
+    // Handle redirect if event creation was successful
+    if (state?.success && state?.redirectTo) {
+      toast.success("Event created successfully");
+      
+      // Use router.refresh() to ensure the auth state is updated before navigation
+      router.refresh();
+      
+      // Then navigate to the event page
+      router.push(state.redirectTo);
+    }
+  }, [state, router]);
+  
   return (
     <div className="container py-10">
       <div className="flex justify-between items-center mb-8">
@@ -75,59 +68,55 @@ export default function NewEventPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-              <FormField
-                control={form.control}
-                name="name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Event Name</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Team Meeting" {...field} />
-                    </FormControl>
-                    <FormDescription>
-                      Give your event a descriptive name.
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="usersCanCloseTime"
-                render={({ field }) => (
-                  <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
-                    <FormControl>
-                      <Checkbox
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
-                    <div className="space-y-1 leading-none">
-                      <FormLabel>Allow participants to set unavailable times</FormLabel>
-                      <FormDescription>
-                        When enabled, participants can mark times they are not available.
-                      </FormDescription>
-                    </div>
-                  </FormItem>
-                )}
-              />
-              <div className="flex justify-end space-x-4">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => router.back()}
-                  disabled={isLoading}
-                >
-                  Cancel
-                </Button>
-                <Button type="submit" disabled={isLoading}>
-                  {isLoading ? "Creating..." : "Create Event"}
-                </Button>
+          <form action={formAction} className="space-y-6">
+            {state?.error && (
+              <div className="p-3 bg-destructive/10 border border-destructive text-destructive rounded-md">
+                {state.error}
               </div>
-            </form>
-          </Form>
+            )}
+            
+            <div className="space-y-2">
+              <Label htmlFor="name">Event Name</Label>
+              <Input 
+                id="name"
+                name="name" 
+                placeholder="Team Meeting" 
+              />
+              {state?.fieldErrors?.name?.map((error: string) => (
+                <p key={error} className="text-sm text-destructive">{error}</p>
+              ))}
+              <p className="text-sm text-muted-foreground">
+                Give your event a descriptive name.
+              </p>
+            </div>
+            
+            <div className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+              <Checkbox
+                id="usersCanCloseTime"
+                name="usersCanCloseTime"
+                defaultChecked={true}
+              />
+              <div className="space-y-1 leading-none">
+                <Label htmlFor="usersCanCloseTime">
+                  Allow participants to set unavailable times
+                </Label>
+                <p className="text-sm text-muted-foreground">
+                  When enabled, participants can mark times they are not available.
+                </p>
+              </div>
+            </div>
+            
+            <div className="flex justify-end space-x-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => router.back()}
+              >
+                Cancel
+              </Button>
+              <SubmitButton />
+            </div>
+          </form>
         </CardContent>
       </Card>
     </div>

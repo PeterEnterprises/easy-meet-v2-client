@@ -59,7 +59,17 @@ export function Header() {
                   <span className="text-sm">
                     Hello, {user?.userName}
                   </span>
-                  <Button variant="outline" size="sm" onClick={logout}>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={async () => {
+                      try {
+                        await logout();
+                      } catch (error) {
+                        console.error('Error during logout:', error);
+                      }
+                    }}
+                  >
                     Logout
                   </Button>
                 </div>
@@ -120,9 +130,13 @@ export function Header() {
                     Hello, {user?.userName}
                   </div>
                   <button
-                    onClick={() => {
-                      logout();
-                      setMobileMenuOpen(false);
+                    onClick={async () => {
+                      try {
+                        await logout();
+                        setMobileMenuOpen(false);
+                      } catch (error) {
+                        console.error('Error during logout:', error);
+                      }
                     }}
                     className="block w-full text-left px-3 py-2 rounded-md text-base font-medium text-foreground hover:bg-muted"
                   >

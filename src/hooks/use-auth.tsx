@@ -4,13 +4,14 @@ import { createContext, useContext, useState, useEffect, ReactNode } from 'react
 import { useRouter } from 'next/navigation';
 import { User } from '@/types';
 import { getCurrentUser } from '@/app/actions/auth.action';
+import { resetApolloStore } from '@/services/apollo-client';
 
 interface AuthContextType {
   user: User | null;
   loading: boolean;
   error: string | null;
   isAuthenticated: boolean;
-  logout: () => void;
+  logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
 }
 
@@ -82,8 +83,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  // Logout function - now just redirects to the server action
-  const logout = () => {
+  // Logout function - reset Apollo store and redirect to logout API
+  const logout = async () => {
+    // Reset Apollo store to clear any cached data
+    await resetApolloStore();
+    
+    // Clear local state
+    setUser(null);
+    setAuthenticated(false);
+    
+    // Redirect to logout API route
     router.push('/api/auth/logout');
   };
 

@@ -6,7 +6,7 @@ import { redirect } from 'next/navigation'
 import { gql } from '@apollo/client'
 import { getClient } from '@/lib/apollo-server'
 import { LoginVariables, SignupVariables } from '@/types/auth'
-import { LOGIN_MUTATION, SIGNUP_MUTATION } from '@/services/auth-service'
+import { authService } from '@/services'
 
 // Define types for form state
 interface LoginFormState {
@@ -78,7 +78,18 @@ export async function login(prevState: LoginFormState, formData: FormData): Prom
     try {
       // Make the GraphQL mutation request
       const { data } = await client.mutate({
-        mutation: LOGIN_MUTATION,
+        mutation: gql`
+          mutation Login($usernameOrEmail: String!, $password: String!) {
+            login(usernameOrEmail: $usernameOrEmail, password: $password) {
+              token
+              user {
+                id
+                userName
+                email
+              }
+            }
+          }
+        `,
         variables: { usernameOrEmail, password } as LoginVariables,
       })
       
@@ -168,7 +179,18 @@ export async function signup(prevState: SignupFormState, formData: FormData): Pr
     
     try {
       const { data } = await client.mutate({
-        mutation: SIGNUP_MUTATION,
+        mutation: gql`
+          mutation Signup($input: CreateUserInput!) {
+            signup(input: $input) {
+              token
+              user {
+                id
+                userName
+                email
+              }
+            }
+          }
+        `,
         variables: { 
           input: { userName, email, password } 
         } as SignupVariables,

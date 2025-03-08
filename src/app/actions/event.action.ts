@@ -2,8 +2,9 @@
 
 import { z } from 'zod'
 import { redirect } from 'next/navigation'
+import { gql } from '@apollo/client'
 import { getClient } from '@/lib/apollo-server'
-import { CREATE_EVENT_MUTATION } from '@/services/event-service'
+import { eventService } from '@/services'
 import { CreateEventInput } from '@/types'
 
 // Define types for form state
@@ -56,7 +57,17 @@ export async function createEventAction(
     
     try {
       const { data } = await client.mutate({
-        mutation: CREATE_EVENT_MUTATION,
+        mutation: gql`
+          mutation CreateEvent($input: CreateEventInput!) {
+            createEvent(input: $input) {
+              id
+              name
+              url
+              eventMaker
+              usersCanCloseTime
+            }
+          }
+        `,
         variables: { 
           input: { name, usersCanCloseTime } as CreateEventInput
         },

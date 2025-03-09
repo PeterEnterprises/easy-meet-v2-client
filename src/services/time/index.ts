@@ -11,6 +11,22 @@ import { getEventAvailabilityPaginated } from './get-event-availability-paginate
 import { createTime } from './create-time';
 import { setMasterClosedTime } from './set-master-closed-time';
 
+// Import subscription
+import { USER_AVAILABILITY_UPDATED_SUBSCRIPTION } from './subscribe-to-availability-updates';
+
+// Export individual functions
+export {
+  getUserAvailability,
+  setUserAvailability,
+  setUserUnavailability,
+  getEventAvailability,
+  getEventAvailabilityPaginated,
+  createTime,
+  setMasterClosedTime,
+  USER_AVAILABILITY_UPDATED_SUBSCRIPTION
+};
+
+// Export as a service object
 export const timeService = {
   // User availability
   getUserAvailability,
@@ -23,5 +39,8 @@ export const timeService = {
   
   // Time management
   createTime,
-  setMasterClosedTime
+  setMasterClosedTime,
+  
+  // Subscriptions
+  USER_AVAILABILITY_UPDATED_SUBSCRIPTION
 };

@@ -5,6 +5,9 @@ import { userService } from './user';
 import { eventService } from './event';
 import { timeService } from './time';
 
+// Import specific functions from event service
+import { getEvent, getEventDates } from './event';
+
 // Export Apollo client
 export { client, resetApolloStore };
 
@@ -14,4 +17,10 @@ export {
   userService,
   eventService,
   timeService
+};
+
+// Export specific functions
+export {
+  getEvent,
+  getEventDates
 };

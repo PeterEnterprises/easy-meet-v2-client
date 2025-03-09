@@ -1,8 +1,11 @@
 "use client";
 
-import { ApolloClient, InMemoryCache, createHttpLink, from } from '@apollo/client';
+import { ApolloClient, InMemoryCache, createHttpLink, from, split } from '@apollo/client';
 import { setContext } from '@apollo/client/link/context';
 import { onError } from '@apollo/client/link/error';
+import { GraphQLWsLink } from '@apollo/client/link/subscriptions';
+import { createClient } from 'graphql-ws';
+import { getMainDefinition } from '@apollo/client/utilities';
 
 const httpLink = createHttpLink({
   uri: 'http://localhost:4000/graphql',
@@ -55,9 +58,39 @@ const errorLink = onError(({ graphQLErrors, networkError }) => {
   }
 });
 
+// WebSocket link for subscriptions
+const wsLink = typeof window !== 'undefined' 
+  ? new GraphQLWsLink(
+      createClient({
+        url: 'ws://localhost:4000/graphql',
+        connectionParams: () => {
+          const token = getTokenFromCookie();
+          return {
+            authorization: token ? `Bearer ${token}` : "",
+          };
+        },
+      })
+    )
+  : null;
+
+// Split link based on operation type
+const splitLink = typeof window !== 'undefined' && wsLink != null
+  ? split(
+      ({ query }) => {
+        const definition = getMainDefinition(query);
+        return (
+          definition.kind === 'OperationDefinition' &&
+          definition.operation === 'subscription'
+        );
+      },
+      wsLink,
+      httpLink
+    )
+  : httpLink;
+
 // Create the Apollo Client instance
 export const client = new ApolloClient({
-  link: from([errorLink, authLink, httpLink]),
+  link: from([errorLink, authLink, splitLink]),
   cache: new InMemoryCache(),
 });
 

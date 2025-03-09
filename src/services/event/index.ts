@@ -22,6 +22,33 @@ import { createEvent } from './create-event';
 import { updateEvent } from './update-event';
 import { deleteEvent } from './delete-event';
 
+// Export individual functions
+export {
+  // Event retrieval
+  getEvent,
+  getEventByUrl,
+  getEvents,
+  getEventsPaginated,
+  getUserEvents,
+  getUserEventsPaginated,
+  
+  // Event dates
+  getEventDates,
+  getEventDatesPaginated,
+  addEventDate,
+  removeEventDate,
+  
+  // Event users
+  getEventUsers,
+  addUserToEvent,
+  removeUserFromEvent,
+  
+  // Event CRUD
+  createEvent,
+  updateEvent,
+  deleteEvent
+};
+
 export const eventService = {
   // Event retrieval
   getEvent,

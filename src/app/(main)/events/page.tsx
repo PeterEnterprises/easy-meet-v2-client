@@ -6,7 +6,7 @@ import { useAuth } from "@/hooks";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Event } from "@/types";
-import { getUserEvents } from "@/services";
+import { getUserEvents } from "../../../services/event/get-user-events";
 
 export default function EventsPage() {
   const { user, isAuthenticated, loading } = useAuth();

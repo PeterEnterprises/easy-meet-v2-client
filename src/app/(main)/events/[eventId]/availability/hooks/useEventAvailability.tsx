@@ -9,7 +9,7 @@ export function useEventAvailability(eventId: string, eventDate: string) {
   const [availabilityData, setAvailabilityData] = useState<UserEventTime[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
-
+  console.log("I call hook")
   // Fetch initial data
   useEffect(() => {
     async function fetchData() {

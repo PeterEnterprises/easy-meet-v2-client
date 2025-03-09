@@ -156,6 +156,35 @@ export async function createEventAction(
             eventDate: dateString
           },
         })
+        
+        // Create UserEventTime entry for the owner (current user) for this date
+        await client.mutate({
+          mutation: gql`
+            mutation SetUserAvailability($userId: ID!, $eventId: ID!, $eventDate: DateTime!, $openTimeInput: TimeInput) {
+              setUserAvailability(userId: $userId, eventId: $eventId, eventDate: $eventDate, openTimeInput: $openTimeInput) {
+                userId
+                eventId
+                eventDate
+                openTime {
+                  id
+                  role
+                  date
+                  hours
+                }
+              }
+            }
+          `,
+          variables: { 
+            userId: currentUser.id,
+            eventId,
+            eventDate: dateString,
+            openTimeInput: {
+              role: "User",
+              date: dateString,
+              hours: Array(24).fill(false) // Default to all hours unavailable
+            }
+          },
+        })
       }
       
       // Step 5: Add all selected participants (if any)
@@ -185,6 +214,37 @@ export async function createEventAction(
               userId: participantId
             },
           })
+          
+          // Create UserEventTime entries for each participant for each event date
+          for (const dateString of validatedDates) {
+            await client.mutate({
+              mutation: gql`
+                mutation SetUserAvailability($userId: ID!, $eventId: ID!, $eventDate: DateTime!, $openTimeInput: TimeInput) {
+                  setUserAvailability(userId: $userId, eventId: $eventId, eventDate: $eventDate, openTimeInput: $openTimeInput) {
+                    userId
+                    eventId
+                    eventDate
+                    openTime {
+                      id
+                      role
+                      date
+                      hours
+                    }
+                  }
+                }
+              `,
+              variables: { 
+                userId: participantId,
+                eventId,
+                eventDate: dateString,
+                openTimeInput: {
+                  role: "User",
+                  date: dateString,
+                  hours: Array(24).fill(false) // Default to all hours unavailable
+                }
+              },
+            })
+          }
         }
       } else {
         console.log('No additional participants to add');

@@ -60,7 +60,7 @@ export default function EventDetailPage() {
     typeof eventId === 'string' ? eventId : '', 
     selectedDate
   );
-
+  console.log('testing: ', eventId, selectedDate, availabilityData, availabilityLoading, availabilityError);
   if (authLoading) {
     return <div className="p-8 text-center">Authenticating...</div>;
   }

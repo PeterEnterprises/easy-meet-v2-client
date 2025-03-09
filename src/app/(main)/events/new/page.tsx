@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useFormState, useFormStatus } from "react-dom";
 import { toast } from "sonner";
@@ -10,13 +10,19 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { DatePickerMultiple } from "@/components/ui/date-picker-multiple";
+import { MultiSelect, Option } from "@/components/ui/multi-select";
 import { createEventAction } from "@/app/actions/event.action";
+import { userService } from "@/services";
+import { User } from "@/types";
 
 // Initial state for form
 const initialState = {
   error: null,
   fieldErrors: {
     name: [],
+    eventDates: [],
+    participants: [],
     usersCanCloseTime: [],
   }
 };
@@ -35,6 +41,39 @@ function SubmitButton() {
 export default function NewEventPage() {
   const router = useRouter();
   const [state, formAction] = useFormState(createEventAction, initialState);
+  const [eventDates, setEventDates] = useState<Date[]>([]);
+  const [participants, setParticipants] = useState<string[]>([]);
+  const [users, setUsers] = useState<Option[]>([]);
+  
+  // Fetch users for participant selection
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        // Get the current user
+        const currentUser = await userService.getCurrentUser();
+        
+        // Get all users
+        const usersList = await userService.getUsers();
+        
+        // Filter out the current user from the list
+        const filteredUsers = currentUser 
+          ? usersList.filter(user => user.id !== currentUser.id)
+          : usersList;
+        
+        setUsers(
+          filteredUsers.map(user => ({
+            label: user.userName,
+            value: user.id
+          }))
+        );
+      } catch (error) {
+        console.error("Error fetching users:", error);
+        toast.error("Failed to load users");
+      }
+    };
+    
+    fetchUsers();
+  }, []);
   
   // Show toast on error or handle redirect on success
   useEffect(() => {
@@ -54,6 +93,22 @@ export default function NewEventPage() {
     }
   }, [state, router]);
   
+  // Handle form submission with additional data
+  const handleSubmit = (formData: FormData) => {
+    // Add the selected dates to the form data
+    eventDates.forEach((date, index) => {
+      formData.append(`eventDates[${index}]`, date.toISOString());
+    });
+    
+    // Add the selected participants to the form data
+    participants.forEach((participantId, index) => {
+      formData.append(`participants[${index}]`, participantId);
+    });
+    
+    // Submit the form
+    formAction(formData);
+  };
+  
   return (
     <div className="container py-10">
       <div className="flex justify-between items-center mb-8">
@@ -64,11 +119,11 @@ export default function NewEventPage() {
         <CardHeader>
           <CardTitle>Event Details</CardTitle>
           <CardDescription>
-            Enter the details for your new event. You&apos;ll be able to add dates and invite participants after creating the event.
+            Enter the details for your new event including dates and participants.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form action={formAction} className="space-y-6">
+          <form action={handleSubmit} className="space-y-6">
             {state?.error && (
               <div className="p-3 bg-destructive/10 border border-destructive text-destructive rounded-md">
                 {state.error}
@@ -87,6 +142,37 @@ export default function NewEventPage() {
               ))}
               <p className="text-sm text-muted-foreground">
                 Give your event a descriptive name.
+              </p>
+            </div>
+            
+            <div className="space-y-2">
+              <Label>Event Dates</Label>
+              <DatePickerMultiple 
+                dates={eventDates}
+                onChange={setEventDates}
+                placeholder="Select dates"
+              />
+              {state?.fieldErrors?.eventDates?.map((error: string) => (
+                <p key={error} className="text-sm text-destructive">{error}</p>
+              ))}
+              <p className="text-sm text-muted-foreground">
+                Add one or more dates for your event.
+              </p>
+            </div>
+            
+            <div className="space-y-2">
+              <Label>Participants (Optional)</Label>
+              <MultiSelect 
+                options={users}
+                selected={participants}
+                onChange={setParticipants}
+                placeholder="Select participants"
+              />
+              {state?.fieldErrors?.participants?.map((error: string) => (
+                <p key={error} className="text-sm text-destructive">{error}</p>
+              ))}
+              <p className="text-sm text-muted-foreground">
+                Select participants to invite to your event. You will be automatically added as a participant, so you don't need to select yourself.
               </p>
             </div>
             
